@@ -6,7 +6,7 @@ import {
   Theme,
   ThemeProvider,
 } from '@react-navigation/native';
-import { ErrorBoundary, Slot, Stack } from 'expo-router';
+import { Slot, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as React from 'react';
 import { Platform, Text } from 'react-native';
@@ -23,6 +23,7 @@ import { setIsLight } from '~/store/features/appConfig/appConfig.slice';
 import SplashScreen from '~/components/splashScreen/SplashScreen';
 import { Toast } from 'react-native-toast-message/lib/src/Toast';
 import { useAuthCheck } from '~/hooks/useAuthCheck';
+import { ErrorBoundary } from '~/builder/ErrorBoundary';
 
 const LIGHT_THEME: Theme = {
   ...DefaultTheme,
@@ -33,14 +34,14 @@ const DARK_THEME: Theme = {
   colors: NAV_THEME.dark,
 };
 
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
+interface State {
+  hasError: boolean;
+  error: Error | null;
+}
 
 export default function RootLayout() {
   const hasMounted = React.useRef(false);
-  const { colorScheme, isDarkColorScheme } = useColorScheme();
+  const { colorScheme } = useColorScheme();
   const [isColorSchemeLoaded, setIsColorSchemeLoaded] = React.useState(false);
 
   useIsomorphicLayoutEffect(() => {
@@ -52,22 +53,19 @@ export default function RootLayout() {
 
     setIsColorSchemeLoaded(true);
     hasMounted.current = true;
-  }, []);
+  }, [colorScheme]);
 
   if (!isColorSchemeLoaded) {
-    return null;
+    return null; // Or loading splash
   }
 
   return (
     <Provider store={store}>
-      <AppProvider>
-        {/* <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="signIn" options={{ headerShown: false }} />
-        </Stack> */}
-        <Slot />
-        <PortalHost />
-      </AppProvider>
+      <ErrorBoundary>
+        <AppProvider>
+          <PortalHost />
+        </AppProvider>
+      </ErrorBoundary>
     </Provider>
   );
 }
@@ -81,22 +79,42 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const { isDarkColorScheme, colorScheme } = useColorScheme();
   const theme = isDarkColorScheme ? DARK_THEME : LIGHT_THEME;
   const dispatch = useAppDispatch();
-  const isLoading = false;
-  const { isAuthenticated, isLoading: isAuthLoading, isError } = useAuthCheck();
-  useEffect(() => {
-    AsyncStorage.setItem('theme', colorScheme).then(() => {
-      dispatch(setIsLight(colorScheme));
-    });
-  }, [colorScheme]);
 
-  if (isLoading || isAuthLoading) {
+  const { isAuthenticated, isLoading: isAuthLoading, isError } = useAuthCheck();
+
+  // Persist theme to AsyncStorage + Redux store
+  React.useEffect(() => {
+    AsyncStorage.setItem('theme', colorScheme).then(() => {
+      dispatch(setIsLight(colorScheme === 'light'));
+    });
+  }, [colorScheme, dispatch]);
+
+  if (isAuthLoading) {
     return <SplashScreen />;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <ThemeProvider value={theme}>
+        <StatusBar style={isDarkColorScheme ? 'light' : 'dark'} />
+        <Stack>
+          {/* Your auth screens */}
+          <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+          {/* You can add signUp, forgot password etc */}
+        </Stack>
+        <Toast />
+      </ThemeProvider>
+    );
   }
 
   return (
     <ThemeProvider value={theme}>
       <StatusBar style={isDarkColorScheme ? 'light' : 'dark'} />
-      {children}
+      <Stack>
+        {/* Main app tabs or screens */}
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/* Other screens if needed */}
+      </Stack>
       <Toast />
     </ThemeProvider>
   );

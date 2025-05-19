@@ -70,3 +70,5 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
     </ThemeProvider>
   );
 };
+
+export default AppProvider;
