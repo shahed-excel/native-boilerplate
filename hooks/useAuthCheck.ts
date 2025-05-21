@@ -12,6 +12,8 @@ export function useAuthCheck() {
     });
   }, []);
 
+  console.log('tokenExists', tokenExists);
+
   // Trigger RTK query only if token exists
   const {
     data: user,

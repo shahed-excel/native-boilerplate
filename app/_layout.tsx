@@ -16,7 +16,7 @@ import { PortalHost } from '@rn-primitives/portal';
 import { setAndroidNavigationBar } from '~/lib/android-navigation-bar';
 import { Provider } from 'react-redux';
 import { store } from '~/store/store';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppDispatch } from '~/store/hooks';
 import { setIsLight } from '~/store/features/appConfig/appConfig.slice';
@@ -79,6 +79,7 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const { isDarkColorScheme, colorScheme } = useColorScheme();
   const theme = isDarkColorScheme ? DARK_THEME : LIGHT_THEME;
   const dispatch = useAppDispatch();
+  const [checkToken, setCheckToken] = useState<string | null>(null);
 
   const { isAuthenticated, isLoading: isAuthLoading, isError } = useAuthCheck();
 
@@ -89,11 +90,19 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
     });
   }, [colorScheme, dispatch]);
 
+  useEffect(() => {
+    AsyncStorage.getItem('access-token').then((token) => {
+      setCheckToken(token);
+    });
+  }, []);
+
+  console.log('checkToken', checkToken);
+
   if (isAuthLoading) {
     return <SplashScreen />;
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !checkToken) {
     return (
       <ThemeProvider value={theme}>
         <StatusBar style={isDarkColorScheme ? 'light' : 'dark'} />
@@ -112,7 +121,7 @@ const AppProvider = ({ children }: { children: React.ReactNode }) => {
       <StatusBar style={isDarkColorScheme ? 'light' : 'dark'} />
       <Stack>
         {/* Main app tabs or screens */}
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(app)" options={{ headerShown: false }} />
         {/* Other screens if needed */}
       </Stack>
       <Toast />
